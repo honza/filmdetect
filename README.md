@@ -3,6 +3,10 @@
 Filmdetect is a cli tool, and a library for detecting what film recipe was used
 to create a Fujifilm jpeg file.
 
+## recipes
+
+You will need a directory of recipe files.  You can create your own, or [use one I maintain][1].
+
 ## cli
 
 ```
@@ -49,3 +53,5 @@ func main() {
 ## license
 
 GPLv3
+
+[1]: https://github.com/honza/film-simulations
