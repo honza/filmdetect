@@ -463,14 +463,8 @@ func (d Difference) String() string {
 	return tableString.String()
 }
 
-// The bool in the return means "were we able to find a perfect match?"
-func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
-	allRecipes, err := GetRecipes(simulationDir)
+func DetectFromRecipes(recipes []Recipe, filename string) ([]Difference, bool, error) {
 	resultDifferences := []Difference{}
-
-	if err != nil {
-		return resultDifferences, false, err
-	}
 
 	recipe, err := GetRecipeFromFile(filename)
 	if err != nil {
@@ -479,7 +473,7 @@ func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
 
 	differences := []Difference{}
 
-	for _, candidate := range allRecipes {
+	for _, candidate := range recipes {
 		differences = append(differences, DifferenceFromRecipes(recipe, candidate))
 	}
 
@@ -510,6 +504,17 @@ func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
 	}
 
 	return resultDifferences, false, nil
+}
+
+// The bool in the return means "were we able to find a perfect match?"
+func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
+	allRecipes, err := GetRecipes(simulationDir)
+	if err != nil {
+		return []Difference{}, false, err
+	}
+
+	return DetectFromRecipes(allRecipes, filename)
+
 }
 
 func Run(simulationDir string, filename string) {
