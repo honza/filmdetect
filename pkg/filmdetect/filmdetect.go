@@ -422,7 +422,8 @@ func DetectFromRecipes(recipes []Recipe, filename string) ([]Difference, bool, e
 	return resultDifferences, false, nil
 }
 
-// The bool in the return means "were we able to find a perfect match?"
+// Detect is the main library function. It returns a list of differences, and
+// the bool in the return means "were we able to find a perfect match?"
 func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
 	allRecipes, err := GetRecipes(simulationDir)
 	if err != nil {
@@ -433,6 +434,7 @@ func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
 
 }
 
+// CLI
 func Run(simulationDir string, filename string) {
 	diffs, havePerfectMatch, err := Detect(simulationDir, filename)
 	if err != nil {
