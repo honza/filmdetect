@@ -17,12 +17,10 @@
 package filmdetect
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -32,55 +30,10 @@ import (
 
 	"github.com/barasher/go-exiftool"
 	"github.com/olekukonko/tablewriter"
-	"github.com/rwcarlsen/goexif/exif"
-	"github.com/rwcarlsen/goexif/tiff"
 )
 
-var Fuji = &fuji{}
-
-type fuji struct{}
-
-const (
-	ClarityField    exif.FieldName = "Exif.Fujifilm.Clarity"
-	GrainEffectSize exif.FieldName = "Exif.Fujifilm.GrainEffectSize"
-	FullScore       int            = 15
-)
-
-var makerNoteFujiFields = map[uint16]exif.FieldName{
-	0x100f: ClarityField,
-	0x104c: GrainEffectSize,
-}
-
-func (_ *fuji) Parse(x *exif.Exif) error {
-	m, err := x.Get(exif.MakerNote)
-	if err != nil {
-		return nil
-	}
-
-	mk, err := x.Get(exif.Make)
-	if err != nil {
-		return nil
-	}
-
-	if val, err := mk.StringVal(); err != nil || val != "FUJIFILM" {
-		return errors.New("Supplied file isn't from a Fujifilm camera.")
-	}
-
-	// THIS WORKS
-	buf := bytes.NewReader(append(make([]byte, m.ValOffset), m.Val[12:]...))
-	_, err = buf.Seek(int64(m.ValOffset), 0)
-	if err != nil {
-		return err
-	}
-
-	mkNotesDir, _, err := tiff.DecodeDir(buf, x.Tiff.Order)
-	if err != nil {
-		fmt.Println("decode dir failed")
-		return err
-	}
-	x.LoadTags(mkNotesDir, makerNoteFujiFields, false)
-	return nil
-}
+// The number of fields in Recipe
+const FullScore = 16
 
 type Recipe struct {
 	Name                 string `json:"name"`
@@ -239,7 +192,7 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 				recipe.FilmSimulation = stringValue
 			}
 
-			if k == "GrainEffect" {
+			if k == "GrainEffectRoughness" {
 				recipe.GrainEffectRoughness = stringValue
 			}
 
@@ -345,53 +298,16 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 				noiseValue, _ := strconv.Atoi(noiseMatch)
 				recipe.NoiseReduction = noiseValue
 			}
+
+			if k == "Clarity" {
+				recipe.Clarity = int(floatValue)
+			}
+
+			if k == "GrainEffectSize" {
+				recipe.GrainEffectSize = stringValue
+			}
+
 		}
-	}
-
-	f, err := os.Open(filename)
-
-	if err != nil {
-		return Recipe{}, err
-	}
-
-	exif.RegisterParsers(Fuji)
-
-	alternateExifData, err := exif.Decode(f)
-
-	if err != nil {
-		return Recipe{}, err
-	}
-
-	clarityField, err := alternateExifData.Get(ClarityField)
-	if err != nil {
-		return Recipe{}, err
-	}
-	grainEffectSizeField, err := alternateExifData.Get(GrainEffectSize)
-	if err != nil {
-		return Recipe{}, err
-	}
-
-	grainEffectSizeValue, err := grainEffectSizeField.Int(0)
-	if err != nil {
-		return Recipe{}, err
-	}
-
-	if grainEffectSizeValue == 0 {
-		recipe.GrainEffectSize = "Off"
-	}
-
-	if grainEffectSizeValue == 16 {
-		recipe.GrainEffectSize = "Small"
-	}
-
-	if grainEffectSizeValue == 32 {
-		recipe.GrainEffectSize = "Large"
-	}
-
-	recipe.Clarity, _ = clarityField.Int(0)
-
-	if recipe.Clarity != 0 {
-		recipe.Clarity = recipe.Clarity / 1000
 	}
 
 	return recipe, nil

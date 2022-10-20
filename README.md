@@ -7,6 +7,10 @@ to create a Fujifilm jpeg file.
 
 You will need a directory of recipe files.  You can create your own, or [use one I maintain][1].
 
+## dependencies
+
+This tool depends on exiftool >= 12.48.
+
 ## cli
 
 ```
