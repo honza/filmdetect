@@ -254,14 +254,20 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 			}
 
 			if k == "Saturation" {
-				p := regexp.MustCompile(`([\-+]?[0-9]+)`)
-				matches := p.FindStringSubmatch(stringValue)
-				if len(matches) < 2 {
-					return Recipe{}, errors.New("Unexpected saturation value")
+				if strings.Contains(stringValue, "Acros") {
+					recipe.Color = 0
+					recipe.FilmSimulation = stringValue
+				} else {
+
+					p := regexp.MustCompile(`([\-+]?[0-9]+)`)
+					matches := p.FindStringSubmatch(stringValue)
+					if len(matches) < 2 {
+						return Recipe{}, errors.New("Unexpected saturation value")
+					}
+					colorMatch := matches[1]
+					colorValue, _ := strconv.Atoi(colorMatch)
+					recipe.Color = colorValue
 				}
-				colorMatch := matches[1]
-				colorValue, _ := strconv.Atoi(colorMatch)
-				recipe.Color = colorValue
 			}
 
 			if k == "Sharpness" {
