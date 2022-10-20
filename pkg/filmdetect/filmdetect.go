@@ -385,13 +385,8 @@ func (d Difference) String() string {
 	return tableString.String()
 }
 
-func DetectFromRecipes(recipes []Recipe, filename string) ([]Difference, bool, error) {
+func DetectFromRecipes(recipes []Recipe, recipe Recipe) ([]Difference, bool, error) {
 	resultDifferences := []Difference{}
-
-	recipe, err := GetRecipeFromFile(filename)
-	if err != nil {
-		return resultDifferences, false, err
-	}
 
 	differences := []Difference{}
 
@@ -436,7 +431,12 @@ func Detect(simulationDir string, filename string) ([]Difference, bool, error) {
 		return []Difference{}, false, err
 	}
 
-	return DetectFromRecipes(allRecipes, filename)
+	recipe, err := GetRecipeFromFile(filename)
+	if err != nil {
+		return []Difference{}, false, err
+	}
+
+	return DetectFromRecipes(allRecipes, recipe)
 
 }
 
