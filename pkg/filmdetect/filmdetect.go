@@ -152,6 +152,82 @@ func GetRecipes(simulationDir string) ([]Recipe, error) {
 
 }
 
+func GetRecipeFromJson(b []byte) (Recipe, error) {
+	recipe := Recipe{}
+	err := json.Unmarshal(b, &recipe)
+	if err != nil {
+		return recipe, err
+	}
+
+	return recipe, nil
+}
+
+func ParseWhiteBalanceOffset(input string) (int, int, error) {
+	if input == "" {
+		return 0, 0, nil
+	}
+	p := regexp.MustCompile(`Red ([\-+][0-9]+), Blue ([\-+][0-9]+)`)
+	matches := p.FindStringSubmatch(input)
+
+	redMatch := matches[1]
+	blueMatch := matches[2]
+
+	red, err := strconv.Atoi(redMatch)
+	if err != nil {
+		return 0, 0, err
+	}
+	blue, err := strconv.Atoi(blueMatch)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	red = red / 20
+	blue = blue / 20
+	return red, blue, nil
+}
+
+func ParseHighlightShadow(input string) (int, error) {
+	if input == "" || input == "Normal" {
+		return 0, nil
+	}
+	p := regexp.MustCompile(`([\-+]?[0-9]+)`)
+	matches := p.FindStringSubmatch(input)
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("Parsing highlight/shadow value failed: Unexpected value: '%s'", input)
+	}
+	match := matches[1]
+	value, err := strconv.Atoi(match)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+func ParseSharpness(input string) (int, error) {
+	switch input {
+	case "Softest":
+		return -4, nil
+	case "Very Soft":
+		return -3, nil
+	case "Soft":
+		return -2, nil
+	case "Medium Soft":
+		return -1, nil
+	case "Normal":
+		return 0, nil
+	case "Medium Hard":
+		return 1, nil
+	case "Hard":
+		return 2, nil
+	case "Very Hard":
+		return 3, nil
+	case "Hardest":
+		return 4, nil
+	}
+
+	return 0, fmt.Errorf("wrong value for sharpness")
+}
+
 func GetRecipeFromFile(filename string) (Recipe, error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
@@ -209,18 +285,10 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 			}
 
 			if k == "WhiteBalanceFineTune" {
-
-				p := regexp.MustCompile(`Red ([\-+][0-9]+), Blue ([\-+][0-9]+)`)
-				matches := p.FindStringSubmatch(stringValue)
-
-				redMatch := matches[1]
-				blueMatch := matches[2]
-
-				red, _ := strconv.Atoi(redMatch)
-				blue, _ := strconv.Atoi(blueMatch)
-
-				red = red / 20
-				blue = blue / 20
+				red, blue, err := ParseWhiteBalanceOffset(stringValue)
+				if err != nil {
+					return recipe, err
+				}
 
 				recipe.WhiteBalanceRed = red
 				recipe.WhiteBalanceBlue = blue
@@ -232,25 +300,21 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 			}
 
 			if k == "HighlightTone" {
-				p := regexp.MustCompile(`([\-+]?[0-9]+)`)
-				matches := p.FindStringSubmatch(stringValue)
-				if len(matches) < 2 {
-					return Recipe{}, errors.New("Unexpected highlight value")
+				high, err := ParseHighlightShadow(stringValue)
+				if err != nil {
+					return Recipe{}, err
 				}
-				highlightMatch := matches[1]
-				highlightValue, _ := strconv.Atoi(highlightMatch)
-				recipe.Highlights = highlightValue
+
+				recipe.Highlights = high
 			}
 
 			if k == "ShadowTone" {
-				p := regexp.MustCompile(`([\-+]?[0-9]+)`)
-				matches := p.FindStringSubmatch(stringValue)
-				if len(matches) < 2 {
-					return Recipe{}, errors.New("Unexpected shadow value")
+				shadow, err := ParseHighlightShadow(stringValue)
+				if err != nil {
+					return Recipe{}, err
 				}
-				shadowMatch := matches[1]
-				shadowValue, _ := strconv.Atoi(shadowMatch)
-				recipe.Shadows = shadowValue
+
+				recipe.Shadows = shadow
 			}
 
 			if k == "Saturation" {
@@ -258,51 +322,31 @@ func GetRecipeFromFile(filename string) (Recipe, error) {
 					recipe.Color = 0
 					recipe.FilmSimulation = stringValue
 				} else {
-
-					p := regexp.MustCompile(`([\-+]?[0-9]+)`)
-					matches := p.FindStringSubmatch(stringValue)
-					if len(matches) < 2 {
-						return Recipe{}, errors.New("Unexpected saturation value")
+					color, err := ParseHighlightShadow(stringValue)
+					if err != nil {
+						return Recipe{}, err
 					}
-					colorMatch := matches[1]
-					colorValue, _ := strconv.Atoi(colorMatch)
-					recipe.Color = colorValue
+					recipe.Color = color
 				}
 			}
 
 			if k == "Sharpness" {
-				switch stringValue {
-				case "Softest":
-					recipe.Sharpness = -4
-				case "Very Soft":
-					recipe.Sharpness = -3
-				case "Soft":
-					recipe.Sharpness = -2
-				case "Medium Soft":
-					recipe.Sharpness = -1
-				case "Normal":
-					recipe.Sharpness = 0
-				case "Medium Hard":
-					recipe.Sharpness = 1
-				case "Hard":
-					recipe.Sharpness = 2
-				case "Very Hard":
-					recipe.Sharpness = 3
-				case "Hardest":
-					recipe.Sharpness = 4
+
+				sharpness, err := ParseSharpness(stringValue)
+				if err != nil {
+					return recipe, err
 				}
+
+				recipe.Sharpness = sharpness
 			}
 
 			if k == "NoiseReduction" {
-				p := regexp.MustCompile(`([\-+]?[0-9]+)`)
-				matches := p.FindStringSubmatch(stringValue)
-				if len(matches) < 2 {
-					fmt.Println(stringValue, matches)
-					return Recipe{}, errors.New("Unexpected noise reduction value")
+				noise, err := ParseHighlightShadow(stringValue)
+				if err != nil {
+					return recipe, err
 				}
-				noiseMatch := matches[1]
-				noiseValue, _ := strconv.Atoi(noiseMatch)
-				recipe.NoiseReduction = noiseValue
+
+				recipe.NoiseReduction = noise
 			}
 
 			if k == "Clarity" {
